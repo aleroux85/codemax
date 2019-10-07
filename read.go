@@ -13,7 +13,9 @@ type logRead struct {
 }
 
 type filelog struct {
-	history []commit
+	history    []commit
+	deleted    bool
+	changefreq uint
 }
 
 type commit struct {
