@@ -9,8 +9,13 @@ import (
 
 func Test(t *testing.T) {
 	lr := codemax.NewLogRead()
+	err := lr.Read("testing/githist.log")
+	if err != nil {
+		t.Error(err)
+		t.SkipNow()
+	}
 
-	exp := "20"
+	exp := "1"
 	got := strconv.Itoa(int(lr.NumFiles()))
 	if exp != got {
 		t.Errorf(`expected %s, got %s`, exp, got)
