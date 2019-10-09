@@ -2,6 +2,7 @@ package codemax
 
 import (
 	"bufio"
+	"bytes"
 	"fmt"
 	"io"
 	"os"
@@ -61,6 +62,25 @@ func (lr logRead) inLocation(fn string) bool {
 
 }
 
+func lineCounter(r io.Reader) (int, error) {
+	buf := make([]byte, 32*1024)
+	count := 0
+	lineSep := []byte{'\n'}
+
+	for {
+		c, err := r.Read(buf)
+		count += bytes.Count(buf[:c], lineSep)
+
+		switch {
+		case err == io.EOF:
+			return count, nil
+
+		case err != nil:
+			return count, err
+		}
+	}
+}
+
 func (lr *logRead) Read(fn string) error {
 	f, err := os.Open(fn)
 	if err != nil {
@@ -68,21 +88,39 @@ func (lr *logRead) Read(fn string) error {
 		return err
 	}
 
+	loglines, err := lineCounter(f)
+	totallines := float64(loglines)
+	curline := 0.0
+	if err != nil {
+		fmt.Println("error counting log file lines,", err)
+		return err
+	}
+	_, err = f.Seek(0, 0)
+	if err != nil {
+		fmt.Println("error rewinding log file,", err)
+		return err
+	}
+
+	fmt.Print("Processing...")
 	scn := bufio.NewScanner(f)
 	for scn.Scan() {
+		curline++
+		fmt.Printf("\rProcessing... %.1f%%", curline/totallines*100)
 		if strings.HasPrefix(scn.Text(), "# ") {
 			for {
-				err := lr.processCommit(scn)
+				err := lr.processCommit(scn, &curline)
 				if err != nil && err.Error() == "is commit line" {
 					continue
 				}
 				if err != nil {
+					fmt.Println("\rProcessing... done")
 					return err
 				}
 				break
 			}
 		}
 	}
+	fmt.Println("\rProcessing... done")
 
 	if err := scn.Err(); err != nil {
 		fmt.Println("error scanning log file,", err)
@@ -101,7 +139,7 @@ func (lr *logRead) Read(fn string) error {
 	return nil
 }
 
-func (lr *logRead) processCommit(scn *bufio.Scanner) error {
+func (lr *logRead) processCommit(scn *bufio.Scanner, curline *float64) error {
 	var info [9]string
 
 	l := scn.Text()
@@ -122,6 +160,7 @@ func (lr *logRead) processCommit(scn *bufio.Scanner) error {
 	}
 
 	for scn.Scan() {
+		(*curline)++
 		if strings.HasPrefix(scn.Text(), "# ") {
 			return fmt.Errorf("is commit line")
 		}

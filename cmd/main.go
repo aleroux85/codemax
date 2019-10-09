@@ -15,12 +15,12 @@ func main() {
 	lr := codemax.NewLogRead()
 	lr.EnableWalk()
 	lr.SetLocations(locations...)
+
 	err := lr.Read("githist.log")
 	if err != nil {
 		fmt.Println(err)
 		return
 	}
-	fmt.Printf("%+v\n", *lr)
 
 	f, err := os.Create("file-report.csv")
 	if err != nil {
