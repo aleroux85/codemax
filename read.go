@@ -3,6 +3,7 @@ package codemax
 import (
 	"bufio"
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
 	"strings"
@@ -212,6 +213,80 @@ func (lr *logRead) scan(fn string) error {
 	file.history[lastCommit].longlines = uint(longLines)
 	file.history[lastCommit].numoflines = uint(numberOfLines)
 	lr.files[fn] = file
+
+	return nil
+}
+
+func (lr *logRead) CCData(f io.Writer, date string) error {
+	time := time.Now()
+
+	for filename, file := range lr.files {
+		if file.history[0].operation == "D" {
+			continue
+		}
+
+		for i, commit := range file.history {
+			if time.After(commit.date) {
+				changefreq := 0
+				tprevmonth := time.AddDate(0, -1, 0)
+				for j := i; j < len(file.history); j++ {
+					if commit.date.Before(tprevmonth) {
+						break
+					}
+					changefreq++
+				}
+				_, err := fmt.Fprintf(f, "%s,%d,%d,%d,%d\n", filename, commit.complexity, changefreq, commit.longlines, commit.numoflines)
+				if err != nil {
+					return err
+				}
+				break
+			}
+		}
+	}
+
+	return nil
+}
+
+func (lr *logRead) HistoryData(f io.Writer) error {
+	time := time.Now()
+
+	for tstep := 0; tstep < 100; tstep++ {
+		time = time.AddDate(0, 0, -7)
+
+		var complexity uint
+		var changeFreqAll uint
+		var longLines uint
+		var numberOfLines uint
+
+		for _, file := range lr.files {
+			if file.history[0].operation == "D" {
+				continue
+			}
+
+			for i, commit := range file.history {
+				if time.After(commit.date) {
+					var changefreq uint
+					tprevmonth := time.AddDate(0, -1, 0)
+					for j := i; j < len(file.history); j++ {
+						if commit.date.Before(tprevmonth) {
+							break
+						}
+						changefreq++
+					}
+					complexity += commit.complexity
+					changeFreqAll += changefreq
+					longLines += commit.longlines
+					numberOfLines += commit.numoflines
+					break
+				}
+			}
+		}
+
+		_, err := fmt.Fprintf(f, "%s,%d,%d,%d,%d\n", time, complexity, changeFreqAll, longLines, numberOfLines)
+		if err != nil {
+			return err
+		}
+	}
 
 	return nil
 }
