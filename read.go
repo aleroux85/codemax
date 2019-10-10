@@ -289,7 +289,7 @@ func (lr *logRead) CCData(f io.Writer, date string) error {
 func (lr *logRead) HistoryData(f io.Writer) error {
 	time := time.Now()
 
-	for tstep := 0; tstep < 100; tstep++ {
+	for tstep := 0; tstep < 500; tstep++ {
 		time = time.AddDate(0, 0, -7)
 
 		var complexity uint
